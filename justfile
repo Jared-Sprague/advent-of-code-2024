@@ -49,7 +49,7 @@ FORCE_DEFAULT := ""
 
 # open DAY's files in vim or neovim (src, input, & example)
 @vim DAY:
-  commands=(${NVIM_BIN:-"nvim"} nvim vim); \
+  commands=(code); \ 
   for cmd in "${commands[@]}"; do \
     if command -v "$cmd" > /dev/null; then \
       echo "opening day {{DAY}}'s files with $cmd"; \

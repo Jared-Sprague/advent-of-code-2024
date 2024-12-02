@@ -2,16 +2,16 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "type": "codelldb",
+            "type": "lldb",
             "request": "launch",
             "name": "Debug executable 'aoc2024'",
             "cwd": "${workspaceFolder}",
             "program": "${workspaceFolder}/target/debug/aoc2024",
             "args": [
-                "-d1",
+                "-d2",
                 "-p1",
                 "-i",
-                "examples/d1"
+                "examples/d2"
             ]
         }
     ]
