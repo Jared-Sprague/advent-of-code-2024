@@ -3,6 +3,8 @@
 
 use std::cmp::Ordering;
 
+use itertools::PeekingNext;
+
 type Model = Vec<Report>;
 type Answer = u32;
 
@@ -16,6 +18,7 @@ const DELTA_THRESHOLD: u8 = 3;
 
 #[derive(Debug)]
 pub struct Report {
+    pub error_damped: bool,
     pub levels: Vec<u8>,
 }
 
@@ -26,14 +29,17 @@ impl From<&str> for Report {
             .filter_map(|num| num.parse::<u8>().ok())
             .collect();
 
-        Report { levels }
+        Report {
+            levels,
+            error_damped: false,
+        }
     }
 }
 
 impl Report {
-    pub fn is_safe(&self) -> bool {
-        let first = self.levels[0];
-        let second = self.levels[1];
+    pub fn is_safe_no_retry(&self, levels: &[u8]) -> bool {
+        let first = levels[0];
+        let second = levels[1];
 
         let direction = match first.cmp(&second) {
             Ordering::Greater => Direction::Desc,
@@ -41,7 +47,7 @@ impl Report {
             Ordering::Equal => return false,
         };
 
-        let mut iter = self.levels.iter().peekable();
+        let mut iter = levels.iter().peekable();
 
         while let Some(current) = iter.next() {
             if let Some(next) = iter.peek() {
@@ -71,6 +77,26 @@ impl Report {
 
         true
     }
+
+    pub fn is_safe_p2_try_remove_each(&self) -> bool {
+        // first try the whole thing
+        let mut is_safe = self.is_safe_no_retry(&self.levels);
+
+        if !is_safe {
+            // now try removing levels one at a time and return on the first one that is safe if any
+            let mut temp_levels: Vec<u8> = vec![];
+
+            for (index, value) in self.levels.iter().enumerate() {
+                temp_levels = self.levels.clone();
+                temp_levels.remove(index);
+                if self.is_safe_no_retry(&temp_levels) {
+                    return true;
+                }
+            }
+        }
+
+        is_safe
+    }
 }
 
 pub fn parse(input: String) -> Model {
@@ -87,12 +113,13 @@ pub fn parse(input: String) -> Model {
 }
 
 pub fn part1(model: Model) -> Answer {
+    println!("part 1");
     let mut total_safe: u32 = 0;
 
     model.iter().for_each(|r| {
         println!("{:?}", r);
 
-        if r.is_safe() {
+        if r.is_safe_no_retry(&r.levels) {
             total_safe += 1;
         }
     });
@@ -100,8 +127,20 @@ pub fn part1(model: Model) -> Answer {
     total_safe
 }
 
-pub fn part2(model: Model) -> Answer {
-    0
+pub fn part2(mut model: Model) -> Answer {
+    println!("part 2");
+    let mut total_safe: u32 = 0;
+
+    model.iter().for_each(|r| {
+        println!("{:?}", r);
+
+        if r.is_safe_p2_try_remove_each() {
+            println!("safe");
+            total_safe += 1;
+        }
+    });
+
+    total_safe
 }
 
 // #[cfg(test)]

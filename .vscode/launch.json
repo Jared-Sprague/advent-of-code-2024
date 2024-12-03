@@ -9,7 +9,7 @@
             "program": "${workspaceFolder}/target/debug/aoc2024",
             "args": [
                 "-d2",
-                "-p1",
+                "-p2",
                 "-i",
                 "examples/d2"
             ]
