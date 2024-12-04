@@ -1,7 +1,6 @@
 //! A solution to day 4 year 2024.
 //! https://adventofcode.com/2024/day/4
 
-use rayon::vec;
 use regex::Regex;
 
 type Model = Puzzle;
