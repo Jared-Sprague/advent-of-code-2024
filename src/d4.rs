@@ -1,7 +1,6 @@
 //! A solution to day 4 year 2024.
 //! https://adventofcode.com/2024/day/4
 
-use console_engine::crossterm::style::Stylize;
 use rayon::vec;
 use regex::Regex;
 
@@ -79,7 +78,7 @@ impl Puzzle {
     pub fn find_xmas(rows: &Vec<String>) -> u32 {
         let mut xmas_count: u32 = 0;
 
-        let re = Regex::new(r"XMAS").unwrap(); // Create the regex pattern
+        let re = Regex::new(r"XMAS").unwrap();
 
         for row in rows {
             // Find all matches
