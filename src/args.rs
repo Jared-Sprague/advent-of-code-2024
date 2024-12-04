@@ -1,5 +1,5 @@
 pub const HELP: &str = "\
-Usage: aoc2021 -d <day> [-p <part>] [-e] [-i <input>]
+Usage: aoc2024 -d <day> [-p <part>] [-e] [-i <input>]
 
 The CLI arguments allowed.
 
@@ -20,7 +20,7 @@ pub struct Args {
     /// specifies the day (255 runs all parts)
     pub day: u8,
     /// specifies the part
-    pub part: u8,
+    pub part: Option<u8>,
     /// use the day's example input from examples/
     pub example: bool,
     /// specify an alternate input file
@@ -37,7 +37,7 @@ pub fn parse_args() -> Result<Args, pico_args::Error> {
 
     let args = Args {
         day: pargs.value_from_str(["-d", "--day"])?,
-        part: pargs.value_from_str(["-p", "--part"]).or(Ok(1))?,
+        part: pargs.value_from_str(["-p", "--part"]).ok(),
         example: pargs.contains(["-e", "--example"]),
         input: pargs.opt_value_from_str(["-i", "--input"])?,
     };

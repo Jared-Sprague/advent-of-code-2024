@@ -73,8 +73,6 @@ impl Report {
             }
         }
 
-        dbg!(direction);
-
         true
     }
 
@@ -113,12 +111,9 @@ pub fn parse(input: String) -> Model {
 }
 
 pub fn part1(model: Model) -> Answer {
-    println!("part 1");
     let mut total_safe: u32 = 0;
 
     model.iter().for_each(|r| {
-        println!("{:?}", r);
-
         if r.is_safe_no_retry(&r.levels) {
             total_safe += 1;
         }
@@ -128,14 +123,10 @@ pub fn part1(model: Model) -> Answer {
 }
 
 pub fn part2(mut model: Model) -> Answer {
-    println!("part 2");
     let mut total_safe: u32 = 0;
 
     model.iter().for_each(|r| {
-        println!("{:?}", r);
-
         if r.is_safe_p2_try_remove_each() {
-            println!("safe");
             total_safe += 1;
         }
     });
