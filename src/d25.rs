@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 //! A solution to day 25 year 2024.
 //! https://adventofcode.com/2024/day/25
 
