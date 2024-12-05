@@ -89,8 +89,8 @@ impl UpdatePack {
             // get index of this before_page_num
             if let Some(before_index) = update.get_index_of(before_page_num) {
                 if page_num_index >= before_index {
-                    println!("update: {:?}", update);
-                    println!("Invalid: page_num: {page_num} index: {page_num_index}, before_page_num: {before_page_num}, before_index: {before_index}");
+                    // println!("update: {:?}", update);
+                    // println!("Invalid: page_num: {page_num} index: {page_num_index}, before_page_num: {before_page_num}, before_index: {before_index}");
                     return (false, before_index, *before_page_num);
                 }
             }
@@ -110,8 +110,8 @@ impl UpdatePack {
             // get index of this before_page_num
             if let Some(after_index) = update.get_index_of(after_page_num) {
                 if page_num_index <= after_index {
-                    println!("update: {:?}", update);
-                    println!("Invalid: page_num: {page_num} index: {page_num_index}, after_page_num: {after_page_num}, after_index: {after_index}");
+                    // println!("update: {:?}", update);
+                    // println!("Invalid: page_num: {page_num} index: {page_num_index}, after_page_num: {after_page_num}, after_index: {after_index}");
                     return (false, after_index, *after_page_num);
                 }
             }
@@ -215,43 +215,3 @@ pub fn part2(model: Model) -> Answer {
     }
     total
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//
-//     const INPUT: &str = include_str!("../input/d5");
-//     const EXAMPLE: &str = include_str!("../examples/d5");
-//
-//     // #[test]
-//     // fn d5p1_example_test() {
-//     //     assert_eq!(
-//     //         part1(parse(EXAMPLE.to_string())),
-//     //         "put part 1 example answer here"
-//     //     );
-//     // }
-//     //
-//     // #[test]
-//     // fn d5p1_input_test() {
-//     //     assert_eq!(
-//     //         part1(parse(INPUT.to_string())),
-//     //         "put part 1 final answer here"
-//     //     );
-//     // }
-//     //
-//     // #[test]
-//     // fn d5p2_example_test() {
-//     //     assert_eq!(
-//     //         part2(parse(EXAMPLE.to_string())),
-//     //         "put part 2 example answer here"
-//     //     );
-//     // }
-//     //
-//     // #[test]
-//     // fn d5p2_input_test() {
-//     //     assert_eq!(
-//     //         part2(parse(INPUT.to_string())),
-//     //         "put part 2 final answer here"
-//     //     );
-//     // }
-// }
