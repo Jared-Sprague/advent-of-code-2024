@@ -1,34 +1,72 @@
 //! A solution to day 6 year 2024.
 //! https://adventofcode.com/2024/day/6
 
+use std::{collections::HashSet, thread, time::Duration};
+
+use crossterm::{
+    cursor::{Hide, MoveTo},
+    execute,
+    style::{Color, Print, SetForegroundColor},
+    terminal::{Clear, ClearType},
+};
+use std::io::stdout;
+
+use indexmap::IndexSet;
+
 type Model = Game;
 type Answer = usize;
 
 trait Actor {
-    fn draw(&self);
+    fn draw(&mut self);
     fn update(&mut self);
 }
 
+static TICK: Option<u64> = Some(20);
+
 pub struct Game {
-    tick_ms: Option<u32>,
+    tick_ms: Option<u64>,
     grid: GameGrid,
     guard: Guard,
 }
 
 impl Actor for Game {
-    fn draw(&self) {
-        todo!()
+    fn draw(&mut self) {
+        self.grid.draw();
+        self.guard.draw();
     }
 
     fn update(&mut self) {
-        todo!()
+        // check the next grid space in guards direction for obstuction
+        let (guard_x, guard_y) = self.guard.get_position_tup();
+
+        // dbg!((guard_x, guard_y));
+
+        let next_space = match self.guard.direction {
+            Direction::Up => self.grid.get_space(guard_x, guard_y - 1),
+            Direction::Down => self.grid.get_space(guard_x, guard_y + 1),
+            Direction::Left => self.grid.get_space(guard_x - 1, guard_y),
+            Direction::Right => self.grid.get_space(guard_x + 1, guard_y),
+        };
+
+        // dbg!(&next_space);
+
+        match next_space {
+            GridSpace::Obstructed(_) => self.guard.turn(),
+            GridSpace::Open => self.guard.move_direction(),
+            GridSpace::OutOfBounds => {
+                self.guard.move_direction();
+                self.guard.in_bounds = false
+            }
+        }
+
+        self.guard.update();
     }
 }
 
 impl From<String> for Game {
     fn from(input: String) -> Self {
         let input = input.trim().to_string();
-        let mut guard = Guard::new();
+        let mut guard_start_position = Position { x: 0, y: 0 };
 
         let lines: Vec<&str> = input.split("\n").collect();
         let width = lines[0].len();
@@ -40,15 +78,22 @@ impl From<String> for Game {
             for (x, char) in line.chars().enumerate() {
                 match char {
                     '.' => grid.set_space(x, y, GridSpace::Open),
-                    '#' => grid.set_space(x, y, GridSpace::Obstructed),
-                    '^' => guard.set_position(x as i32, y as i32),
+                    '#' => grid.set_space(x, y, GridSpace::Obstructed(ObsticleType::Wall)),
+                    '^' => {
+                        guard_start_position = Position {
+                            x: x as i32,
+                            y: y as i32,
+                        }
+                    }
                     _ => panic!("invalid input"),
                 }
             }
         }
 
+        let guard = Guard::new(guard_start_position.x, guard_start_position.y);
+
         Game {
-            tick_ms: None,
+            tick_ms: TICK,
             grid,
             guard,
         }
@@ -57,24 +102,102 @@ impl From<String> for Game {
 
 impl Game {}
 
+#[derive(Debug)]
 struct GameGrid {
+    width: usize,
+    height: usize,
+    drawn: bool,
     grid: Vec<Vec<GridSpace>>,
 }
 
 impl Actor for GameGrid {
-    fn draw(&self) {
-        todo!()
+    fn draw(&mut self) {
+        if !self.drawn {
+            // draw grid using crossterm
+            let border_color: Color = Color::White;
+            let obsticle_color: Color = Color::Yellow;
+            let open_color: Color = Color::DarkGrey;
+            let mut stdout = stdout();
+            let grid_size = 10;
+
+            // Define border dimensions
+            let border_width = grid_size + 2; // +2 for the left and right borders
+            let border_height = grid_size + 2; // +2 for the top and bottom borders
+
+            // Clear the screen and hide the cursor
+            execute!(stdout, Clear(ClearType::All), Hide).unwrap();
+
+            // Draw the border
+            for y in 0..border_height {
+                for x in 0..border_width {
+                    let (char_to_draw, color) = if y == 0 {
+                        // Top border
+                        if x == 0 {
+                            ("┌", border_color) // Top-left corner
+                        } else if x == border_width - 1 {
+                            ("┐", border_color) // Top-right corner
+                        } else {
+                            ("─", border_color) // Horizontal line
+                        }
+                    } else if y == border_height - 1 {
+                        // Bottom border
+                        if x == 0 {
+                            ("└", border_color) // Bottom-left corner
+                        } else if x == border_width - 1 {
+                            ("┘", border_color) // Bottom-right corner
+                        } else {
+                            ("─", border_color) // Horizontal line
+                        }
+                    } else {
+                        // Middle rows (sides only)
+                        if x == 0 || x == border_width - 1 {
+                            ("│", border_color) // Vertical line
+                        } else {
+                            // Inside the border
+                            match self.grid[y - 1][x - 1] {
+                                GridSpace::Obstructed(ObsticleType::Wall) => ("#", obsticle_color),
+                                GridSpace::Obstructed(ObsticleType::Crate) => ("0", Color::White),
+                                GridSpace::Open => (".", open_color),
+                                GridSpace::OutOfBounds => panic!("should not be in grid"),
+                            }
+                        }
+                    };
+
+                    // Set the cursor position
+                    execute!(stdout, MoveTo(x as u16, y as u16)).unwrap();
+
+                    // Set the foreground color to Blue and print text
+                    execute!(stdout, SetForegroundColor(color), Print(char_to_draw),).unwrap();
+                }
+            }
+
+            self.drawn = true;
+        }
     }
 
     fn update(&mut self) {
-        todo!()
+        // currently static
     }
 }
 
 impl GameGrid {
     pub fn new(width: usize, height: usize) -> Self {
         let grid = vec![vec![GridSpace::Open; width]; height];
-        GameGrid { grid }
+        GameGrid {
+            drawn: false,
+            grid,
+            width,
+            height,
+        }
+    }
+
+    pub fn get_space(&self, x: i32, y: i32) -> GridSpace {
+        // check for out of bounds
+        if x < 0 || y < 0 || (x as usize >= self.width || y as usize >= self.height) {
+            return GridSpace::OutOfBounds;
+        }
+
+        self.grid[y as usize][x as usize]
     }
 
     pub fn set_space(&mut self, x: usize, y: usize, space: GridSpace) {
@@ -82,52 +205,125 @@ impl GameGrid {
     }
 }
 
+#[derive(Debug)]
 struct Guard {
+    start_position: Position,
     position: Position,
     direction: Direction,
-    traveled_path: Vec<Position>,
+    traveled_path: IndexSet<(i32, i32)>,
+    in_bounds: bool,
+    in_loop: bool,
+    hit_obsticles: HashSet<(Position, Direction)>,
 }
 
 impl Actor for Guard {
-    fn draw(&self) {
-        todo!()
+    fn draw(&mut self) {
+        let mut stdout = stdout();
+        let x = self.position.x as u16;
+        let y = self.position.y as u16;
+        let direction_char = match self.direction {
+            Direction::Up => "^",
+            Direction::Down => "V",
+            Direction::Left => "<",
+            Direction::Right => ">",
+        };
+
+        // Set the cursor position
+        execute!(stdout, MoveTo(x + 1, y + 1)).unwrap();
+
+        // Set the foreground color to Blue and print text
+        execute!(
+            stdout,
+            SetForegroundColor(Color::Cyan),
+            Print(direction_char),
+        )
+        .unwrap();
     }
 
     fn update(&mut self) {
-        // check the next space in current direction
-        // if obstructed, change direction
-        // else move_direction()
-
-        todo!()
+        // update guard
     }
 }
 
 impl Guard {
-    pub fn new() -> Self {
+    pub fn new(x: i32, y: i32) -> Self {
+        let position = Position { x, y };
+        let traveled_path = IndexSet::new();
+
         Guard {
-            position: Position { x: 0, y: 0 },
+            start_position: position.clone(),
+            position: position.clone(),
             direction: Direction::Up,
-            traveled_path: vec![],
+            traveled_path,
+            in_bounds: true,
+            in_loop: false,
+            hit_obsticles: HashSet::new(),
         }
     }
 
-    pub fn is_on_grid(&self) -> bool {
-        todo!()
+    pub fn move_direction(&mut self) {
+        match self.direction {
+            Direction::Up => self.position.y -= 1,
+            Direction::Down => self.position.y += 1,
+            Direction::Left => self.position.x -= 1,
+            Direction::Right => self.position.x += 1,
+        }
+
+        self.traveled_path
+            .insert((self.position.x, self.position.y));
     }
 
-    pub fn move_direction(&mut self) {}
+    fn get_position_tup(&self) -> (i32, i32) {
+        (self.position.x, self.position.y)
+    }
 
-    fn set_position(&mut self, x: i32, y: i32) {
-        self.position.x = x;
-        self.position.y = y;
+    fn reset(&mut self) {
+        self.position = self.start_position.clone();
+        self.direction = Direction::Up;
+        self.traveled_path = IndexSet::new();
+        self.in_bounds = true;
+        self.in_loop = false;
+        self.hit_obsticles = HashSet::new();
+    }
+
+    fn turn(&mut self) {
+        // println!(
+        //     "turn(): current pos: {:?}, current dir: {:?}",
+        //     self.position, self.direction
+        // );
+
+        // before turning record our position and direction we were going that made us turn for loop detection
+        if self
+            .hit_obsticles
+            .contains(&(self.position.clone(), self.direction.clone()))
+        {
+            // we've turned at this spot going the same direction once before
+            self.in_loop = true;
+        } else {
+            self.hit_obsticles
+                .insert((self.position.clone(), self.direction.clone()));
+        }
+
+        self.direction = match self.direction {
+            Direction::Up => Direction::Right,
+            Direction::Down => Direction::Left,
+            Direction::Left => Direction::Up,
+            Direction::Right => Direction::Down,
+        }
+    }
+
+    fn is_start_position(&self, x: i32, y: i32) -> bool {
+        self.start_position.x == x && self.start_position.y == y
     }
 }
 
+#[derive(Clone, PartialEq, Eq, Debug, Hash)]
 struct Position {
     x: i32,
     y: i32,
 }
 
+#[derive(Debug, Eq, Hash, PartialEq, Clone)]
 enum Direction {
     Up,
     Down,
@@ -135,10 +331,17 @@ enum Direction {
     Right,
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 enum GridSpace {
-    Obstructed,
+    Obstructed(ObsticleType),
     Open,
+    OutOfBounds,
+}
+
+#[derive(PartialEq, Debug, Clone, Copy)]
+enum ObsticleType {
+    Wall,
+    Crate,
 }
 
 pub fn parse(input: String) -> Model {
@@ -146,11 +349,103 @@ pub fn parse(input: String) -> Model {
 }
 
 pub fn part1(model: Model) -> Answer {
-    0
+    let mut model = model;
+
+    // game loop
+    while model.guard.in_bounds {
+        model.draw();
+        model.update();
+
+        if let Some(tick_ms) = model.tick_ms {
+            thread::sleep(Duration::from_millis(tick_ms));
+        }
+    }
+
+    // move cursor to bottom
+    execute!(stdout(), MoveTo(0, 11)).unwrap();
+    println!();
+
+    model.guard.traveled_path.len() - 1
 }
 
 pub fn part2(model: Model) -> Answer {
-    0
+    let mut model = model;
+    let mut num_positions = 0;
+
+    // calculate the first path travelled, only new obsticles should go in this path
+    while model.guard.in_bounds {
+        model.draw();
+        model.update();
+
+        if let Some(tick_ms) = model.tick_ms {
+            thread::sleep(Duration::from_millis(tick_ms));
+        }
+    }
+
+    // starting position and remove the last out of bounds position in the path
+    let mut traveled_path = model.guard.traveled_path.clone();
+    let _ = traveled_path.shift_remove_index(0);
+    let _ = traveled_path.pop();
+
+    // reset the guard back to the starting position
+    model.guard.reset();
+
+    for (x, y) in traveled_path {
+        // println!("set O: ({}, {})", x, y);
+
+        if model.guard.is_start_position(x, y) {
+            // skip the starting position
+            continue;
+        }
+
+        // place a crate as a new obsticle in the path
+        model.grid.set_space(
+            x as usize,
+            y as usize,
+            GridSpace::Obstructed(ObsticleType::Crate),
+        );
+
+        while model.guard.in_bounds && !model.guard.in_loop {
+            // println!("update");
+            model.draw();
+            model.update();
+
+            // println!("({}, {})", model.guard.position.x, model.guard.position.y);
+
+            if let Some(tick_ms) = model.tick_ms {
+                thread::sleep(Duration::from_millis(tick_ms));
+            }
+        }
+
+        if model.guard.in_loop {
+            // println!("inloop");
+            let mut stdout = stdout();
+
+            // Set the cursor position
+            execute!(stdout, MoveTo(4, 5)).unwrap();
+
+            // Set the foreground color to Blue and print text
+            execute!(stdout, SetForegroundColor(Color::Magenta), Print("LOOP!"),).unwrap();
+
+            thread::sleep(Duration::from_millis(1500));
+            num_positions += 1;
+        }
+
+        model.guard.reset();
+
+        // remove the temporary obsticle
+        model
+            .grid
+            .set_space(x as usize, y as usize, GridSpace::Open);
+
+        model.grid.drawn = false;
+    }
+
+    // move cursor to bottom
+    execute!(stdout(), MoveTo(0, 11)).unwrap();
+    println!();
+
+    num_positions
 }
 
 #[cfg(test)]
@@ -171,11 +466,15 @@ mod tests {
         assert_eq!(
             game.grid.grid,
             vec![
-                vec![GridSpace::Open, GridSpace::Open, GridSpace::Obstructed],
+                vec![
+                    GridSpace::Open,
+                    GridSpace::Open,
+                    GridSpace::Obstructed(ObsticleType::Wall)
+                ],
                 vec![GridSpace::Open, GridSpace::Open, GridSpace::Open],
                 vec![
-                    GridSpace::Obstructed,
-                    GridSpace::Obstructed,
+                    GridSpace::Obstructed(ObsticleType::Wall),
+                    GridSpace::Obstructed(ObsticleType::Wall),
                     GridSpace::Open
                 ],
             ]
