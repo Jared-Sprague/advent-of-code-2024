@@ -4,7 +4,7 @@
 use std::{collections::HashSet, thread, time::Duration};
 
 use crossterm::{
-    cursor::{Hide, MoveTo},
+    cursor::{Hide, MoveTo, Show},
     execute,
     style::{Color, Print, SetForegroundColor},
     terminal::{Clear, ClearType},
@@ -21,7 +21,9 @@ trait Actor {
     fn update(&mut self);
 }
 
-static TICK: Option<u64> = Some(20);
+// static TICK: Option<u64> = Some(20);
+static TICK: Option<u64> = None;
+static VISUALIZE: bool = false;
 
 pub struct Game {
     tick_ms: Option<u64>,
@@ -31,8 +33,10 @@ pub struct Game {
 
 impl Actor for Game {
     fn draw(&mut self) {
-        self.grid.draw();
-        self.guard.draw();
+        if VISUALIZE {
+            self.grid.draw();
+            self.guard.draw();
+        }
     }
 
     fn update(&mut self) {
@@ -100,7 +104,22 @@ impl From<String> for Game {
     }
 }
 
-impl Game {}
+impl Game {
+    pub fn draw_loop_msg() {
+        if VISUALIZE {
+            // println!("inloop");
+            let mut stdout = stdout();
+
+            // Set the cursor position
+            execute!(stdout, MoveTo(4, 5)).unwrap();
+
+            // Set the foreground color to Blue and print text
+            execute!(stdout, SetForegroundColor(Color::Magenta), Print("LOOP!"),).unwrap();
+
+            thread::sleep(Duration::from_millis(1500));
+        }
+    }
+}
 
 #[derive(Debug)]
 struct GameGrid {
@@ -214,6 +233,7 @@ struct Guard {
     in_bounds: bool,
     in_loop: bool,
     hit_obsticles: HashSet<(Position, Direction)>,
+    track_path: bool,
 }
 
 impl Actor for Guard {
@@ -258,6 +278,7 @@ impl Guard {
             in_bounds: true,
             in_loop: false,
             hit_obsticles: HashSet::new(),
+            track_path: true,
         }
     }
 
@@ -269,8 +290,10 @@ impl Guard {
             Direction::Right => self.position.x += 1,
         }
 
-        self.traveled_path
-            .insert((self.position.x, self.position.y));
+        if self.track_path {
+            self.traveled_path
+                .insert((self.position.x, self.position.y));
+        }
     }
 
     fn get_position_tup(&self) -> (i32, i32) {
@@ -344,12 +367,26 @@ enum ObsticleType {
     Crate,
 }
 
+// make sure cursor is always shown at the end
+struct CursorGuard;
+
+impl Drop for CursorGuard {
+    fn drop(&mut self) {
+        let mut stdout = stdout();
+        // Ensure the cursor is shown when the program exits
+        execute!(stdout, Show).unwrap();
+    }
+}
+
 pub fn parse(input: String) -> Model {
     Game::from(input)
 }
 
 pub fn part1(model: Model) -> Answer {
     let mut model = model;
+
+    // Create a guard to ensure the cursor is shown when exiting
+    let _guard = CursorGuard;
 
     // game loop
     while model.guard.in_bounds {
@@ -372,6 +409,9 @@ pub fn part2(model: Model) -> Answer {
     let mut model = model;
     let mut num_positions = 0;
 
+    // Create a guard to ensure the cursor is shown when exiting
+    let _guard = CursorGuard;
+
     // calculate the first path travelled, only new obsticles should go in this path
     while model.guard.in_bounds {
         model.draw();
@@ -389,6 +429,7 @@ pub fn part2(model: Model) -> Answer {
 
     // reset the guard back to the starting position
     model.guard.reset();
+    model.guard.track_path = false; // tracking path takes a lot of resources to do the IndexSet inserts, it's not needed for finding the loops
 
     for (x, y) in traveled_path {
         // println!("set O: ({}, {})", x, y);
@@ -418,16 +459,7 @@ pub fn part2(model: Model) -> Answer {
         }
 
         if model.guard.in_loop {
-            // println!("inloop");
-            let mut stdout = stdout();
-
-            // Set the cursor position
-            execute!(stdout, MoveTo(4, 5)).unwrap();
-
-            // Set the foreground color to Blue and print text
-            execute!(stdout, SetForegroundColor(Color::Magenta), Print("LOOP!"),).unwrap();
-
-            thread::sleep(Duration::from_millis(1500));
+            Game::draw_loop_msg();
             num_positions += 1;
         }
 
@@ -441,9 +473,11 @@ pub fn part2(model: Model) -> Answer {
         model.grid.drawn = false;
     }
 
-    // move cursor to bottom
-    execute!(stdout(), MoveTo(0, 11)).unwrap();
-    println!();
+    if VISUALIZE {
+        // move cursor to bottom
+        execute!(stdout(), MoveTo(0, 11)).unwrap();
+        println!();
+    }
 
     num_positions
 }
