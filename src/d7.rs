@@ -25,21 +25,6 @@ impl From<String> for Calibration {
 }
 
 impl Calibration {
-    fn merge_operands_and_operators(&self, operators: &[char]) -> Vec<char> {
-        let mut result: Vec<char> = Vec::with_capacity(self.operands.len() + operators.len());
-
-        for (i, operand) in self.operands.iter().enumerate() {
-            // cast the operand to a char
-            let operand_char = (b'0' + *operand as u8) as char;
-            result.push(operand_char);
-            if i < operators.len() {
-                result.push(operators[i]);
-            }
-        }
-
-        result
-    }
-
     fn calculate_value(&self, operators: Vec<char>) -> u64 {
         let mut operands = self.operands.clone();
         let mut value = 0u64;
@@ -57,6 +42,10 @@ impl Calibration {
             value = match next_operator {
                 '*' => left_operand * right_operand as u64,
                 '+' => left_operand + right_operand as u64,
+                '|' => {
+                    let concat_value_string = format!("{left_operand}{right_operand}");
+                    concat_value_string.parse::<u64>().unwrap()
+                }
                 _ => panic!("unknown operator"),
             };
         }
@@ -81,6 +70,31 @@ pub fn permute_with_two(size: usize) -> Vec<Vec<char>> {
         let mut with_plus = perm.clone();
         with_plus.push('+');
         result.push(with_plus);
+    }
+
+    result
+}
+
+pub fn permute_with_three(size: usize) -> Vec<Vec<char>> {
+    if size == 0 {
+        return vec![vec![]];
+    }
+
+    let smaller_permutations = permute_with_three(size - 1);
+    let mut result = Vec::new();
+
+    for perm in smaller_permutations {
+        let mut with_star = perm.clone();
+        with_star.push('*');
+        result.push(with_star);
+
+        let mut with_plus = perm.clone();
+        with_plus.push('+');
+        result.push(with_plus);
+
+        let mut with_pipe = perm.clone();
+        with_pipe.push('|');
+        result.push(with_pipe);
     }
 
     result
@@ -123,7 +137,26 @@ pub fn part1(model: Model) -> Answer {
 }
 
 pub fn part2(model: Model) -> Answer {
-    0
+    let mut sum = 0;
+
+    for calibration in model {
+        let operators_len = calibration.operands.len() - 1;
+        let operators = permute_with_three(operators_len);
+
+        // see if any of the operator permutations yields the correct value
+        for ops in operators {
+            let value = calibration.calculate_value(ops);
+            if calibration.value == value {
+                // println!("correct: {} == {}", calibration.value, value);
+                sum += value;
+                break; // found a good combination, no need to keep going
+            } else {
+                // println!("incorrect: {} == {}", calibration.value, value);
+            }
+        }
+    }
+
+    sum
 }
 
 #[cfg(test)]
@@ -147,6 +180,13 @@ mod tests {
     }
 
     #[test]
+    fn test_permute_three_length_1() {
+        let result = permute_with_three(1);
+        let expected = vec![vec!['*'], vec!['+'], vec!['|']];
+        assert_eq!(result, expected);
+    }
+
+    #[test]
     fn test_permute_length_2() {
         let result = permute_with_two(2);
         let expected = vec![
@@ -154,6 +194,23 @@ mod tests {
             vec!['*', '+'],
             vec!['+', '*'],
             vec!['+', '+'],
+        ];
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_permute_with_three() {
+        let result = permute_with_three(2);
+        let expected = vec![
+            vec!['*', '*'],
+            vec!['*', '+'],
+            vec!['*', '|'],
+            vec!['+', '*'],
+            vec!['+', '+'],
+            vec!['+', '|'],
+            vec!['|', '*'],
+            vec!['|', '+'],
+            vec!['|', '|'],
         ];
         assert_eq!(result, expected);
     }
@@ -172,20 +229,5 @@ mod tests {
             vec!['+', '+', '+'],
         ];
         assert_eq!(result, expected);
-    }
-
-    #[test]
-    fn test_merge_operands_and_operators() {
-        let input = "190: 1 2 3".to_string();
-        let calibration: Calibration = input.into();
-
-        let operators = vec!['*', '+'];
-        let result = calibration.merge_operands_and_operators(&operators);
-
-        let expected = vec!['1', '*', '2', '+', '3'];
-        assert_eq!(
-            result, expected,
-            "The merged result did not match the expected value."
-        );
     }
 }
