@@ -22,6 +22,8 @@ trait Actor {
 }
 
 // static TICK: Option<u64> = Some(20);
+// static VISUALIZE: bool = true;
+
 static TICK: Option<u64> = None;
 static VISUALIZE: bool = false;
 
@@ -372,9 +374,15 @@ struct CursorGuard;
 
 impl Drop for CursorGuard {
     fn drop(&mut self) {
-        let mut stdout = stdout();
-        // Ensure the cursor is shown when the program exits
-        execute!(stdout, Show).unwrap();
+        if VISUALIZE {
+            let mut stdout = stdout();
+
+            // Ensure the cursor is shown when the program exits
+            execute!(stdout, Show).unwrap();
+
+            // move cursor to bottom
+            execute!(stdout, MoveTo(0, 12)).unwrap();
+        }
     }
 }
 
@@ -397,10 +405,6 @@ pub fn part1(model: Model) -> Answer {
             thread::sleep(Duration::from_millis(tick_ms));
         }
     }
-
-    // move cursor to bottom
-    execute!(stdout(), MoveTo(0, 11)).unwrap();
-    println!();
 
     model.guard.traveled_path.len() - 1
 }
@@ -471,12 +475,6 @@ pub fn part2(model: Model) -> Answer {
             .set_space(x as usize, y as usize, GridSpace::Open);
 
         model.grid.drawn = false;
-    }
-
-    if VISUALIZE {
-        // move cursor to bottom
-        execute!(stdout(), MoveTo(0, 11)).unwrap();
-        println!();
     }
 
     num_positions
