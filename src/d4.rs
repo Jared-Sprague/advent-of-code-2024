@@ -101,10 +101,10 @@ impl Puzzle {
         let total_diagnal_right = Puzzle::find_xmas(&self.diagnal_right);
         let total_diagnal_left = Puzzle::find_xmas(&self.diagnal_left);
 
-        println!("h: {total_horizantal}");
-        println!("v: {total_vertical}");
-        println!("d right: {total_diagnal_right}");
-        println!("d left: {total_diagnal_left}");
+        // println!("h: {total_horizantal}");
+        // println!("v: {total_vertical}");
+        // println!("d right: {total_diagnal_right}");
+        // println!("d left: {total_diagnal_left}");
 
         total_horizantal + total_vertical + total_diagnal_right + total_diagnal_left
     }

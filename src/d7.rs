@@ -1,6 +1,10 @@
 //! A solution to day 7 year 2024.
 //! https://adventofcode.com/2024/day/7
 
+use std::sync::atomic::{AtomicU64, Ordering};
+
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
+
 type Model = Vec<Calibration>;
 type Answer = u64;
 
@@ -143,27 +147,27 @@ pub fn part1(model: Model) -> Answer {
 }
 
 pub fn part2(model: Model) -> Answer {
-    let mut sum = 0;
+    let sum = AtomicU64::new(0);
     let mut model = model;
 
     for calibration in model.iter_mut() {
         let operators_len = calibration.operands.len() - 1;
         let mut operators = permute_with_three(operators_len);
 
-        // see if any of the operator permutations yields the correct value
-        for ops in operators.iter_mut() {
-            let value = calibration.calculate_value(ops);
+        let _ = operators.par_iter_mut().try_for_each(|o| {
+            let value = calibration.calculate_value(o);
             if calibration.value == value {
                 // println!("correct: {} == {}", calibration.value, value);
-                sum += value;
-                break; // found a good combination, no need to keep going
+                sum.fetch_add(value, Ordering::Relaxed);
+                Err(()) // found a good combination, break out of the loop
             } else {
                 // println!("incorrect: {} == {}", calibration.value, value);
+                Ok(()) // continue the loop
             }
-        }
+        });
     }
 
-    sum
+    sum.load(Ordering::Relaxed)
 }
 
 #[cfg(test)]
