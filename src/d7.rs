@@ -15,29 +15,34 @@ impl From<String> for Calibration {
         let parts: Vec<&str> = input.split(":").collect();
         let value = parts[0].trim().parse::<u64>().unwrap();
         let operands: Vec<&str> = parts[1].trim().split(" ").collect();
-        let operands: Vec<u32> = operands
+        let mut operands: Vec<u32> = operands
             .iter()
             .map(|o| o.trim().parse::<u32>().unwrap())
             .collect();
+
+        // reverse to read right-to-left using pop() which is faster than remove(0)
+        operands.reverse();
 
         Calibration { value, operands }
     }
 }
 
 impl Calibration {
-    fn calculate_value(&self, operators: Vec<char>) -> u64 {
-        let mut operands = self.operands.clone();
+    fn calculate_value(&self, operators: &mut Vec<char>) -> u64 {
         let mut value = 0u64;
-        let mut operators = operators.clone();
+        let mut operands = self.operands.clone();
+
+        // reverse to read right-to-left using pop() which is faster than remove(0)
+        operators.reverse();
 
         while !operands.is_empty() {
             let left_operand = if value == 0 {
-                operands.remove(0) as u64
+                operands.pop().unwrap() as u64
             } else {
                 value
             };
-            let next_operator = operators.remove(0);
-            let right_operand = operands.remove(0);
+            let next_operator = operators.pop().unwrap();
+            let right_operand = operands.pop().unwrap();
 
             value = match next_operator {
                 '*' => left_operand * right_operand as u64,
@@ -115,13 +120,14 @@ pub fn parse(input: String) -> Model {
 
 pub fn part1(model: Model) -> Answer {
     let mut sum = 0;
+    let mut model = model;
 
-    for calibration in model {
+    for calibration in model.iter_mut() {
         let operators_len = calibration.operands.len() - 1;
-        let operators = permute_with_two(operators_len);
+        let mut operators = permute_with_two(operators_len);
 
         // see if any of the operator permutations yields the correct value
-        for ops in operators {
+        for ops in operators.iter_mut() {
             let value = calibration.calculate_value(ops);
             if calibration.value == value {
                 // println!("correct: {} == {}", calibration.value, value);
@@ -138,13 +144,14 @@ pub fn part1(model: Model) -> Answer {
 
 pub fn part2(model: Model) -> Answer {
     let mut sum = 0;
+    let mut model = model;
 
-    for calibration in model {
+    for calibration in model.iter_mut() {
         let operators_len = calibration.operands.len() - 1;
-        let operators = permute_with_three(operators_len);
+        let mut operators = permute_with_three(operators_len);
 
         // see if any of the operator permutations yields the correct value
-        for ops in operators {
+        for ops in operators.iter_mut() {
             let value = calibration.calculate_value(ops);
             if calibration.value == value {
                 // println!("correct: {} == {}", calibration.value, value);
